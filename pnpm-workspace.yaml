@@ -8,3 +8,5 @@ onlyBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'
   - prisma
+overrides:
+  sharp: ^0.35.5
