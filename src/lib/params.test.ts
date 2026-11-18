@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { DATA_TYPE, OPERATORS } from './constants';
 import {
+  filtersObjectToArray,
   parseSessionPropertyFilters,
   parseUniversalEventPropertyFilters,
   serializeSessionPropertyFilters,
@@ -69,5 +70,31 @@ describe('session property filter params', () => {
         epf2: '1.eq',
       }),
     ).toEqual([]);
+  });
+});
+
+describe('filtersObjectToArray', () => {
+  // GHSA-vhf9-rcmp-v5fc: name and paramName become SQL placeholder names, so object
+  // filters from a request body must take them from the validated key only.
+  test('ignores a client-supplied name and paramName on object filters', () => {
+    const filters = filtersObjectToArray({
+      entry: {
+        name: 'entry}} or 1=1 --',
+        value: 'x',
+        operator: OPERATORS.contains,
+        paramName: 'p}} or 1=1 --',
+      },
+      path1: {
+        name: 'path',
+        value: '/a',
+        operator: OPERATORS.equals,
+        paramName: 'q}} or 1=1 --',
+      },
+    } as any);
+
+    expect(filters.map(({ name, paramName }) => ({ name, paramName }))).toEqual([
+      { name: 'entry', paramName: undefined },
+      { name: 'path', paramName: 'path1' },
+    ]);
   });
 });

@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, test, vi } from 'vitest';
+import { OPERATORS } from './constants';
 
 process.env.DATABASE_URL ??= 'postgresql://user:pass@localhost:5432/umami?schema=public';
 delete process.env.DATABASE_REPLICA_URL;
@@ -182,5 +183,38 @@ describe('pagedRawQuery default ordering', () => {
     queryRaw.mockClear();
     await prisma.pagedRawQuery('select * from thing', {}, { page: 1, pageSize: 2 });
     expect(queryRaw.mock.calls[1][0]).not.toMatch(/order by/);
+  });
+});
+
+describe('filter placeholders', () => {
+  // GHSA-vhf9-rcmp-v5fc: a paramName such as 'p}} or 1=1 --' used to close the
+  // placeholder early, so the rest of it ran as raw SQL.
+  test('keeps a client-supplied name and paramName out of the executed SQL', async () => {
+    const queryRaw = vi.mocked((prisma.client as any).$queryRawUnsafe);
+    queryRaw.mockClear();
+    queryRaw.mockResolvedValue([]);
+
+    const { filterQuery, queryParams } = prisma.parseFilters({
+      entry: {
+        name: 'entry',
+        value: 'x',
+        operator: OPERATORS.contains,
+        paramName: 'p}} or 1=1 --',
+      },
+      path: {
+        name: 'path}} or 1=1 --',
+        value: '/a',
+        operator: OPERATORS.equals,
+      },
+    });
+
+    await prisma.rawQuery(`select 1 from website_event where true ${filterQuery}`, queryParams);
+
+    const [sql, ...params] = queryRaw.mock.calls[0];
+
+    expect(sql).not.toContain('1=1');
+    expect(sql).toContain('website_event.url_path ilike $1');
+    expect(sql).toContain('website_event.url_path = ANY($2)');
+    expect(params).toEqual(['%x%', ['/a']]);
   });
 });

@@ -184,7 +184,7 @@ export const goalReportSchema = z.object({
   parameters: z.object({
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
-    type: z.string(),
+    type: z.enum(['path', 'event']),
     value: z.string(),
   }),
 });
@@ -360,7 +360,7 @@ export const segmentParamSchema = z.object({
   dateRange: z.string().optional(),
   action: z
     .object({
-      type: z.string(),
+      type: z.enum(['path', 'event']),
       value: z.string(),
     })
     .optional(),

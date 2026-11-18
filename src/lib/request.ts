@@ -133,7 +133,9 @@ export async function getQueryFilters(
       const segmentParams = (await getWebsiteSegment(websiteId, params.segment))
         ?.parameters as Record<string, any>;
 
-      Object.assign(filters, filtersArrayToObject(segmentParams.filters));
+      // Stored filter names are free-form, so keep only real filter columns. Otherwise a filter
+      // named e.g. "timezone" would replace the validated request value on its way into SQL.
+      Object.assign(filters, getRequestFilters(filtersArrayToObject(segmentParams.filters)));
       sessionPropertyFilters.push(...(segmentParams.sessionPropertyFilters ?? []));
 
       if (segmentParams.match) {
@@ -147,11 +149,14 @@ export async function getQueryFilters(
 
       const { startDate, endDate } = parseDateRange(cohortParams.dateRange);
 
-      const cohortFilters = cohortParams.filters.map(({ name, ...props }) => ({
+      const cohortFilters = (cohortParams.filters ?? []).map(({ name, ...props }) => ({
         ...props,
         name: `cohort_${name}`,
       }));
 
+      if (!['path', 'event'].includes(cohortParams.action.type)) {
+        throw new Error('This cohort uses a retired action and must be updated.');
+      }
       cohortFilters.push({
         name: `cohort_${cohortParams.action.type}`,
         operator: OPERATORS.equals,
