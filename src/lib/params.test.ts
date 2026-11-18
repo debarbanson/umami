@@ -74,27 +74,36 @@ describe('session property filter params', () => {
 });
 
 describe('filtersObjectToArray', () => {
-  // GHSA-vhf9-rcmp-v5fc: name and paramName become SQL placeholder names, so object
-  // filters from a request body must take them from the validated key only.
-  test('ignores a client-supplied name and paramName on object filters', () => {
-    const filters = filtersObjectToArray({
-      entry: {
-        name: 'entry}} or 1=1 --',
-        value: 'x',
-        operator: OPERATORS.contains,
-        paramName: 'p}} or 1=1 --',
-      },
-      path1: {
-        name: 'path',
-        value: '/a',
-        operator: OPERATORS.equals,
-        paramName: 'q}} or 1=1 --',
-      },
+  // name and paramName become SQL placeholder names ({{name}} / {name:Type}).
+  // Object filters arrive from request bodies (compat Reports API), so letting them
+  // pick those names allows breaking out of the placeholder into raw SQL.
+  const injection = 'p}} or 1=1 --';
+
+  test('ignores client-supplied paramName in object filters', () => {
+    const [filter] = filtersObjectToArray({
+      entry: { name: 'entry', operator: OPERATORS.contains, value: 'x', paramName: injection },
     } as any);
 
-    expect(filters.map(({ name, paramName }) => ({ name, paramName }))).toEqual([
-      { name: 'entry', paramName: undefined },
-      { name: 'path', paramName: 'path1' },
-    ]);
+    expect(filter.name).toBe('entry');
+    expect(filter.paramName).toBeUndefined();
+  });
+
+  test('ignores client-supplied name in object filters', () => {
+    const [filter] = filtersObjectToArray({
+      entry: { name: injection, operator: OPERATORS.contains, value: 'x' },
+    } as any);
+
+    expect(filter.name).toBe('entry');
+    expect(filter.paramName).toBeUndefined();
+  });
+
+  test('keeps numbered keys as distinct params for repeated filters', () => {
+    const [filter] = filtersObjectToArray({
+      path1: { name: 'path', operator: OPERATORS.equals, value: '/a', paramName: injection },
+    } as any);
+
+    expect(filter.name).toBe('path');
+    expect(filter.paramName).toBe('path1');
+    expect(filter.value).toBe('/a');
   });
 });
