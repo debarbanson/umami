@@ -16324,7 +16324,8 @@ export interface operations {
           name: string;
           /** @description Configuration parameters for the resource. */
           parameters: {
-            type: string;
+            /** @enum {string} */
+            type: 'path' | 'event';
             value: string;
           };
         };
@@ -16506,7 +16507,8 @@ export interface operations {
           name: string;
           /** @description Configuration parameters for the resource. */
           parameters: {
-            type: string;
+            /** @enum {string} */
+            type: 'path' | 'event';
             value: string;
           };
         };
@@ -16852,7 +16854,7 @@ export interface operations {
         /** @description Filter by page title. */
         title?: string;
         /** @description Type of resource or analytics dimension to return. */
-        type: string;
+        type: 'path' | 'event';
         /** @description Time interval used to group results: minute, hour, day, month, or year. */
         unit?: string;
         /** @description UTM campaign name. */
