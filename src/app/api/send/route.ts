@@ -148,8 +148,10 @@ export async function POST(request: Request) {
       const urlQuery = currentUrl.search.substring(1);
       const urlDomain = currentUrl.hostname.replace(/^www\./, '');
 
-      let referrerPath: string;
-      let referrerQuery: string;
+      // Studio Barbanson fork (owner's decision, 25 Nov 2026): only the name of
+      // the site a visitor came from is stored. The page address and query on
+      // that site can carry search terms, so referrer_path and referrer_query
+      // stay empty.
       let referrerDomain: string;
 
       // UTM Params
@@ -186,8 +188,6 @@ export async function POST(request: Request) {
         // Resolve path-only referrers against the event's domain, not the localhost fallback
         const referrerUrl = new URL(referrer, eventDomain ? `https://${eventDomain}` : base);
 
-        referrerPath = referrerUrl.pathname;
-        referrerQuery = referrerUrl.search.substring(1);
         referrerDomain = referrerUrl.hostname.replace(/^www\./, '');
 
         // Never save the referrer domain for self-referrals
@@ -216,8 +216,6 @@ export async function POST(request: Request) {
         hostname: hostname || urlDomain,
         urlPath: safeDecodeURI(urlPath),
         urlQuery,
-        referrerPath: safeDecodeURI(referrerPath),
-        referrerQuery,
         referrerDomain,
 
         // Session

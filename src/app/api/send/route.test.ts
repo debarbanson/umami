@@ -361,7 +361,7 @@ describe('eventType selection ladder', () => {
 });
 
 describe('event url and referrer parsing', () => {
-  test('extracts url path, query, domain and referrer fields', async () => {
+  test('extracts url path, query, domain and the referrer domain', async () => {
     await callPOST({
       type: 'event',
       payload: {
@@ -379,10 +379,46 @@ describe('event url and referrer parsing', () => {
       urlQuery: 'utm_source=news&gclid=abc',
       utmSource: 'news',
       gclid: 'abc',
-      referrerPath: '/search',
-      referrerQuery: 'q=umami',
       referrerDomain: 'google.com',
     });
+  });
+
+  // Studio Barbanson fork (owner's decision, 25 Nov 2026): keep only the name
+  // of the site a visitor came from. The page address and query on that site
+  // (which can hold search terms) are never stored, for outside and
+  // self-referrals alike.
+  test('never saves the referrer page address or query, only its domain', async () => {
+    await callPOST({
+      type: 'event',
+      payload: {
+        website: WEBSITE_ID,
+        hostname: 'example.com',
+        url: '/products',
+        referrer: 'https://www.bing.com/search?q=private+question&form=QBLH',
+      },
+    });
+
+    const arg = saveEventMock.mock.calls[0][0] as Record<string, any>;
+    expect(arg.referrerDomain).toBe('bing.com');
+    expect(arg.referrerPath).toBeUndefined();
+    expect(arg.referrerQuery).toBeUndefined();
+  });
+
+  test('saves no referrer fields at all for a self-referral', async () => {
+    await callPOST({
+      type: 'event',
+      payload: {
+        website: WEBSITE_ID,
+        hostname: 'example.com',
+        url: '/products',
+        referrer: 'https://example.com/account?token=abc',
+      },
+    });
+
+    const arg = saveEventMock.mock.calls[0][0] as Record<string, any>;
+    expect(arg.referrerDomain).toBeUndefined();
+    expect(arg.referrerPath).toBeUndefined();
+    expect(arg.referrerQuery).toBeUndefined();
   });
 
   test('does not save referrer domain when it matches the hostname', async () => {
@@ -397,10 +433,8 @@ describe('event url and referrer parsing', () => {
     });
 
     const arg = saveEventMock.mock.calls[0][0] as Record<string, any>;
-    expect(arg).toMatchObject({
-      referrerPath: '/prev',
-      referrerQuery: 'a=1',
-    });
+    expect(arg.referrerPath).toBeUndefined();
+    expect(arg.referrerQuery).toBeUndefined();
     expect(arg.referrerDomain).toBeUndefined();
   });
 
@@ -416,10 +450,8 @@ describe('event url and referrer parsing', () => {
     });
 
     const arg = saveEventMock.mock.calls[0][0] as Record<string, any>;
-    expect(arg).toMatchObject({
-      referrerPath: '/prev',
-      referrerQuery: 'a=1',
-    });
+    expect(arg.referrerPath).toBeUndefined();
+    expect(arg.referrerQuery).toBeUndefined();
     expect(arg.referrerDomain).toBeUndefined();
   });
 
@@ -436,7 +468,6 @@ describe('event url and referrer parsing', () => {
 
     expect(saveEventMock.mock.calls[0][0]).toMatchObject({
       referrerDomain: 'example.com.br',
-      referrerPath: '/page',
     });
   });
 
@@ -451,7 +482,8 @@ describe('event url and referrer parsing', () => {
     });
 
     const arg = saveEventMock.mock.calls[0][0] as Record<string, any>;
-    expect(arg).toMatchObject({ referrerPath: '/prev' });
+    expect(arg).toMatchObject({ urlPath: '/products' });
+    expect(arg.referrerPath).toBeUndefined();
     expect(arg.referrerDomain).toBeUndefined();
   });
 
@@ -467,7 +499,6 @@ describe('event url and referrer parsing', () => {
     });
 
     const arg = saveEventMock.mock.calls[0][0] as Record<string, any>;
-    expect(arg).toMatchObject({ referrerPath: '/prev' });
     expect(arg.referrerDomain).toBeUndefined();
   });
 
@@ -483,7 +514,6 @@ describe('event url and referrer parsing', () => {
     });
 
     const arg = saveEventMock.mock.calls[0][0] as Record<string, any>;
-    expect(arg).toMatchObject({ referrerPath: '/prev' });
     expect(arg.referrerDomain).toBeUndefined();
   });
 
