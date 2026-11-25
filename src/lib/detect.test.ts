@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { getLocation, hasBlockedIp } from './detect';
+import { getClientInfo, getLocation, hasBlockedIp } from './detect';
 import { getIpAddress } from './ip';
 
 const IP = '127.0.0.1';
@@ -80,4 +80,29 @@ test('hasBlockedIp: returns false for malformed client ip with cidr block', () =
   process.env.IGNORE_IP = '10.0.0.0/8';
 
   expect(hasBlockedIp('not-an-ip')).toBe(false);
+});
+
+// Studio Barbanson fork (owner's decision, 25 Nov 2026): only the country is
+// kept. Region and city narrowed a visitor down far more than the studio needs
+// (nothing it runs reads them), so getClientInfo never returns them and no
+// session, event or error row stores them.
+const located = () =>
+  new Request('https://umami.example/api/send', {
+    headers: {
+      'x-forwarded-for': '203.0.113.7',
+      'cf-ipcountry': 'NL',
+      'cf-region-code': 'NH',
+      'cf-ipcity': 'Haarlem',
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+    },
+  });
+
+test('getClientInfo: keeps the country', async () => {
+  expect((await getClientInfo(located(), {})).country).toBe('NL');
+});
+
+test('getClientInfo: never returns a region or a city', async () => {
+  const info = await getClientInfo(located(), {});
+  expect(info.region).toBeUndefined();
+  expect(info.city).toBeUndefined();
 });

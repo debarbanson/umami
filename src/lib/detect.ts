@@ -138,8 +138,11 @@ export async function getClientInfo(request: Request, payload: Record<string, an
   const ip = payload?.ip || getIpAddress(request.headers);
   const location = await getLocation(ip, request.headers, !!payload?.ip);
   const country = safeDecodeURIComponent(location?.country);
-  const region = safeDecodeURIComponent(location?.region);
-  const city = safeDecodeURIComponent(location?.city);
+  // Studio Barbanson fork (owner's decision, 25 Nov 2026): only the country is
+  // kept. Region and city are never returned, so no session, event or error
+  // row stores them.
+  const region: string | undefined = undefined;
+  const city: string | undefined = undefined;
   const browser = payload?.browser ?? browserName(userAgent);
   const os = payload?.os ?? (detectOS(userAgent) as string);
   const device = payload?.device ?? getDevice(userAgent, payload?.screen);
