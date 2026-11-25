@@ -376,11 +376,51 @@ describe('event url and referrer parsing', () => {
     expect(arg).toMatchObject({
       hostname: 'example.com',
       urlPath: '/products',
-      urlQuery: 'utm_source=news&gclid=abc',
       utmSource: 'news',
       gclid: 'abc',
       referrerDomain: 'google.com',
     });
+  });
+
+  // Studio Barbanson fork (owner's decision, 25 Nov 2026): the query string is
+  // never stored. It carried visitors' email addresses and tokens (unsubscribe
+  // links) and one-time login codes. Campaign tags keep their own fields.
+  test('never saves the query string, but keeps the campaign tags', async () => {
+    await callPOST({
+      type: 'event',
+      payload: {
+        website: WEBSITE_ID,
+        hostname: 'example.com',
+        url: '/afmelden/?e=someone%40example.org&t=secret&utm_source=mail&gclid=g1',
+      },
+    });
+
+    const arg = saveEventMock.mock.calls[0][0] as Record<string, any>;
+    expect(arg.urlQuery).toBeUndefined();
+    expect(arg.urlPath).toBe('/afmelden/');
+    expect(arg).toMatchObject({ utmSource: 'mail', gclid: 'g1' });
+  });
+
+  test('drops a hash that carries key=value pairs, as login tokens do', async () => {
+    await callPOST({
+      type: 'event',
+      payload: {
+        website: WEBSITE_ID,
+        hostname: 'example.com',
+        url: '/auth/callback#access_token=abc&refresh_token=def',
+      },
+    });
+
+    expect((saveEventMock.mock.calls[0][0] as Record<string, any>).urlPath).toBe('/auth/callback');
+  });
+
+  test('keeps a plain hash route such as a booking step', async () => {
+    await callPOST({
+      type: 'event',
+      payload: { website: WEBSITE_ID, hostname: 'example.com', url: '/#boek/huisbezoek/stap-1' },
+    });
+
+    expect((saveEventMock.mock.calls[0][0] as Record<string, any>).urlPath).toBe('/#boek/huisbezoek/stap-1');
   });
 
   // Studio Barbanson fork (owner's decision, 25 Nov 2026): keep only the name

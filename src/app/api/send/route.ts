@@ -143,9 +143,13 @@ export async function POST(request: Request) {
       const base = hostname ? `https://${hostname}` : 'https://localhost';
       const currentUrl = new URL(url, base);
 
-      let urlPath =
-        currentUrl.pathname === '/undefined' ? '' : currentUrl.pathname + currentUrl.hash;
-      const urlQuery = currentUrl.search.substring(1);
+      // Studio Barbanson fork (owner's decision, 25 Nov 2026): the query string
+      // is never stored (it carried visitors' email addresses, unsubscribe
+      // tokens and one-time login codes; the campaign tags below keep their own
+      // fields), and a hash that carries key=value pairs, as login tokens do, is
+      // dropped. Plain hash routes such as #boek/stap-1 stay.
+      const hash = currentUrl.hash.includes('=') ? '' : currentUrl.hash;
+      let urlPath = currentUrl.pathname === '/undefined' ? '' : currentUrl.pathname + hash;
       const urlDomain = currentUrl.hostname.replace(/^www\./, '');
 
       // Studio Barbanson fork (owner's decision, 25 Nov 2026): only the name of
@@ -215,7 +219,6 @@ export async function POST(request: Request) {
         pageTitle: safeDecodeURIComponent(title),
         hostname: hostname || urlDomain,
         urlPath: safeDecodeURI(urlPath),
-        urlQuery,
         referrerDomain,
 
         // Session
